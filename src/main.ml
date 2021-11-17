@@ -1,8 +1,6 @@
 (* This is the main entry-point for the executable.
    Edit [cmd] to set the text for "--help" and modify the command-line interface. *)
 
-let () = Logging.init ()
-
 let read_first_line path =
   let ch = open_in path in
   Fun.protect (fun () -> input_line ch)
@@ -30,7 +28,7 @@ let has_role user role =
       ), _ -> true        (* These users have all roles *)
     | _ -> role = `Viewer
 
-let main config mode app slack auth =
+let main () config mode app slack auth =
   let channel = read_channel_uri slack in
   let engine = Current.Engine.create ~config (Pipeline.v ~app ~notify:channel) in
   let authn = Option.map Current_github.Auth.make_login_uri auth in
@@ -65,7 +63,7 @@ let slack =
 
 let cmd =
   let doc = "build and deploy services from Git" in
-  Term.(const main $ Current.Config.cmdliner $ Current_web.cmdliner $
+  Term.(const main $ Logging.cmdliner $ Current.Config.cmdliner $ Current_web.cmdliner $
         Current_github.App.cmdliner $ slack $ Current_github.Auth.cmdliner),
   Term.info "deploy" ~doc
 
