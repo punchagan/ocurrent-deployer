@@ -42,20 +42,22 @@ let or_fail = function
   | Ok x -> x
   | Error (`Msg m) -> failwith m
 
-type arch = [
-  | `Linux_arm64
-  | `Linux_x86_64
-  | `Linux_ppc64
-  | `Linux_s390x
-  | `Linux_riscv64
-]
+module Arch = struct 
+  type t = [
+    | `Linux_arm64
+    | `Linux_x86_64
+    | `Linux_ppc64
+    | `Linux_s390x
+    | `Linux_riscv64
+    ] 
 
-let pool_id : arch -> string = function
-  | `Linux_arm64 -> "linux-arm64"
-  | `Linux_x86_64 -> "linux-x86_64"
-  | `Linux_ppc64 -> "linux-ppc64"
-  | `Linux_s390x -> "linux-s390x"
-  | `Linux_riscv64 -> "linux-riscv64"
+  let pool_id : t -> string = function
+    | `Linux_arm64 -> "linux-arm64"
+    | `Linux_x86_64 -> "linux-x86_64"
+    | `Linux_ppc64 -> "linux-ppc64"
+    | `Linux_s390x -> "linux-s390x"
+    | `Linux_riscv64 -> "linux-riscv64"
+end
 
 module Packet_unikernel = struct
   (* Mirage unikernels running on packet.net *)
@@ -128,7 +130,7 @@ module Cluster = struct
     sched : Current_ocluster.t;
     dockerfile : [`Contents of string Current.t | `Path of string];
     options : Cluster_api.Docker.Spec.options;
-    archs : arch list;
+    archs : Arch.t list;
   }
 
   type service = [
@@ -162,21 +164,22 @@ module Cluster = struct
     | None -> None
 
   (* Build [src/dockerfile] as a Docker service. *)
-  let build { sched; dockerfile; options; archs } ?(additional_build_args=Current.return []) repo src : unit Current.t =
+  let build { sched; dockerfile; options; archs } ?(additional_build_args=Current.return []) repo commit =
     Current.component "HEADs" |>
     let** additional_build_args = additional_build_args in
     let options = { options with build_args = additional_build_args @ options.build_args } in
     let build_arch arch =
-      let* src = src in
-      let build = Current_ocluster.build sched ~options ~pool:(pool_id arch) ~src:(Current.return [src]) dockerfile in
-      let hash = Current_git.Commit_id.hash src in
-      let () = Logs.info (fun f -> f "Building arch: %s repo: %s hash: %s" (pool_id arch) (Fmt.str("%s/%s") repo.Github.Repo_id.owner repo.name) hash) in
-      let+ job_id = get_job_id build in
-      let job_str = match job_id with | Some x -> x | None -> "None" in
-      let () = Logs.info (fun f -> f "Recording repo: %s hash: %s job: %s" (Fmt.str("%s/%s") repo.owner repo.name) hash job_str) in
-      Index.record ~repo ~hash [("build", job_id)]
+      let result = Current_ocluster.build sched ~options ~pool:(Arch.pool_id arch) ~src:(Current.map (fun x -> [x]) commit) dockerfile in
+      let+ result = result
+      and+ job_id = get_job_id result in
+      (result, job_id)
     in
-    Current.all (List.map build_arch archs)
+    let builds = archs |> List.map build_arch |> Current.list_seq in
+    let+ commit = commit
+    and+ builds = builds in
+    let hash = Current_git.Commit_id.hash commit in
+    let jobs = builds |> List.map (fun ((), job_id) -> ("build", job_id)) in
+    Index.record ~repo ~hash jobs
 
   let name info = Cluster_api.Docker.Image_id.to_string info.hub_id
 
@@ -207,7 +210,7 @@ module Cluster = struct
     let** additional_build_args = additional_build_args in
     let options = { options with build_args = additional_build_args @ options.build_args } in
     let build_arch arch =
-      let pool = pool_id arch in
+      let pool = Arch.pool_id arch in
       let tag = Printf.sprintf "live-%s-%s" target_label pool in
       let push_target = Cluster_api.Docker.Image_id.v ~repo:push_repo ~tag in
       Current_ocluster.build_and_push sched ~options ~push_target ~pool ~src dockerfile
