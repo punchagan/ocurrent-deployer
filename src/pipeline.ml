@@ -381,7 +381,7 @@ let ocaml_org ?app ?notify:channel ?filter ~sched ~staging_auth () =
                                                                          `Aws_ecs {name = "v3a"; branch = "live"; vcpu = 0.5; memory = 2048; storage = None; replicas = 2; command = None; port = 8080; certificate = "arn:aws:acm:us-east-1:867081712685:certificate/24cde0e9-42c0-41ef-99d8-0fe8db462f36"}]];
       (* Staging branch for ocaml.org website. *)
       docker "Dockerfile" ["staging", "ocurrent/v3.ocaml.org-server:staging", [`Stagingocamlorg_cl "infra_www";
-                                                                               `Aws_ecs {name = "v3a"; branch = "staging"; vcpu = 0.5; memory = 2048; storage = None; replicas = 1; command = None; port = 8080; certificate = "arn:aws:acm:us-east-1:867081712685:certificate/9647db34-004d-43d2-9102-accf6e09c63a"}]]
+                                                                               `Aws_ecs {name = "v3a"; branch = "staging"; vcpu = 0.5; memory = 2048; storage = None; replicas = 2; command = None; port = 8080; certificate = "arn:aws:acm:us-east-1:867081712685:certificate/9647db34-004d-43d2-9102-accf6e09c63a"}]]
     ];
 
     ocaml, "v2.ocaml.org", [
@@ -427,7 +427,7 @@ let ocaml_org ?app ?notify:channel ?filter ~sched ~staging_auth () =
         "Dockerfile" [ "live", "ocurrent/opam.ocaml.org:live", [`Ocamlorg_opam "infra_opam_live";
                                                                 `Aws_ecs {name = "opam3"; branch = "live"; vcpu = 0.25; memory = 512; storage = Some 50; replicas = 2; command = Some "--root /usr/share/caddy"; port = 80; certificate = "arn:aws:acm:us-east-1:867081712685:certificate/941be8db-4733-49c9-b634-43ff0537890c"}]
                      ; "live-staging", "ocurrent/opam.ocaml.org:staging", [`Ocamlorg_opam "infra_opam_staging";
-                                                                           `Aws_ecs {name = "opam3"; branch = "staging"; vcpu = 0.25; memory = 512; storage = Some 50; replicas = 1; command = Some "--root /usr/share/caddy"; port = 80; certificate = "arn:aws:acm:us-east-1:867081712685:certificate/954e46c1-33fe-405d-ba4b-49ca189f050b"}]]
+                                                                           `Aws_ecs {name = "opam3"; branch = "staging"; vcpu = 0.25; memory = 512; storage = Some 50; replicas = 2; command = Some "--root /usr/share/caddy"; port = 80; certificate = "arn:aws:acm:us-east-1:867081712685:certificate/954e46c1-33fe-405d-ba4b-49ca189f050b"}]]
         ~options:(include_git |> build_kit)
         ~archs:[`Linux_arm64; `Linux_x86_64]
     ]
